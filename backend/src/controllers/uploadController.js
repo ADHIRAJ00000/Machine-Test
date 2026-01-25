@@ -58,22 +58,11 @@ const uploadAndDistribute = async (req, res) => {
 };
 
 const validateHeaders = (data) => {
+    // No longer enforce specific column headers; any CSV/Excel file is accepted as long as it's not empty.
     if (data.length === 0) {
         throw new Error('File is empty');
     }
-
-    const firstItem = data[0];
-    const keys = Object.keys(firstItem).map(k => k.trim()); // Case sensitive check as per requirement? Requirement says "FirstName - Text", usually implies check.
-    // Let's be slightly flexible with case but strict with presence.
-    const lowerKeys = keys.map(k => k.toLowerCase());
-
-    const hasFirstName = lowerKeys.includes('firstname');
-    const hasPhone = lowerKeys.includes('phone');
-    const hasNotes = lowerKeys.includes('notes');
-
-    if (!hasFirstName || !hasPhone || !hasNotes) {
-        throw new Error('Invalid file format. Required columns: FirstName, Phone, Notes');
-    }
+    // Previously required columns FirstName, Phone, Notes have been removed per user request.
 };
 
 const validateRowData = (row) => {
@@ -99,39 +88,44 @@ const validateRowData = (row) => {
 };
 
 const processAndDistribute = async (items, agents, res) => {
-    const agentCount = agents.length;
-    const itemsPerAgent = Math.floor(items.length / agentCount);
-    const remainingItems = items.length % agentCount;
+    // Distribute items to agents in a round-robin fashion, persisting order across uploads.
 
-    let currentItemIndex = 0;
-    const distributedItems = [];
+    // 1. Find the last assigned agent from the DB to determine where to start.
+    // We sort by createdAt descending to get the very last item distributed.
+    const lastItem = await ListItem.findOne().sort({ createdAt: -1 });
+    let lastAgentId = lastItem ? lastItem.assignedTo.toString() : null;
 
-    for (let i = 0; i < agentCount; i++) {
-        const countForThisAgent = itemsPerAgent + (i < remainingItems ? 1 : 0);
-        const agentItems = items.slice(currentItemIndex, currentItemIndex + countForThisAgent);
-
-        for (const item of agentItems) {
-            validateRowData(item); // Validation per row
-
-            // Helper to get value case-insensitively
-            const getValue = (obj, key) => {
-                const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-                return foundKey ? obj[foundKey] : undefined;
-            };
-
-            distributedItems.push({
-                firstName: getValue(item, 'firstname') || 'N/A',
-                phone: getValue(item, 'phone') || '0000000000',
-                notes: getValue(item, 'notes') || '',
-                assignedTo: agents[i]._id,
-            });
+    let startIndex = 0;
+    if (lastAgentId) {
+        const lastAgentIndex = agents.findIndex(a => a._id.toString() === lastAgentId);
+        if (lastAgentIndex !== -1) {
+            // Start from the next agent after the last one
+            startIndex = (lastAgentIndex + 1) % agents.length;
         }
-        currentItemIndex += countForThisAgent;
     }
 
+    const distributedItems = [];
+    let agentIdx = startIndex;
+
+    for (const item of items) {
+        // Validate each row's data.
+        validateRowData(item);
+        // Helper to get value case-insensitively.
+        const getValue = (obj, key) => {
+            const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+            return foundKey ? obj[foundKey] : undefined;
+        };
+        distributedItems.push({
+            firstName: getValue(item, 'firstname') || 'N/A',
+            phone: getValue(item, 'phone') || '0000000000',
+            notes: getValue(item, 'notes') || '',
+            assignedTo: agents[agentIdx]._id,
+        });
+        // Move to next agent, wrap around.
+        agentIdx = (agentIdx + 1) % agents.length;
+    }
     try {
-        // Optional: Clear existing lists before uploading new ones? 
-        // The requirement doesn't specify, so I'll just add them.
+        // Insert all distributed items.
         await ListItem.insertMany(distributedItems);
         res.status(201).json({ message: 'List distributed successfully', count: distributedItems.length });
     } catch (error) {
@@ -203,4 +197,5 @@ module.exports = {
     updateListItemStatus,
     clearAllLists,
     deleteListItem,
+    processAndDistribute, // Exported for testing
 };
