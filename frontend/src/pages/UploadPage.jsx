@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import api from '../api/axiosConfig';
+=======
+import axios from 'axios';
+>>>>>>> c5cb1bd4b96ab4c7275e81b709ca115f32511f6d
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Upload as UploadIcon, FileSpreadsheet, CheckCircle, List, Trash2 } from 'lucide-react';
@@ -15,7 +19,11 @@ const UploadPage = () => {
 
     const fetchLists = async () => {
         try {
+<<<<<<< HEAD
             const { data } = await api.get('/api/upload/lists', {
+=======
+            const { data } = await axios.get('/api/upload/lists', {
+>>>>>>> c5cb1bd4b96ab4c7275e81b709ca115f32511f6d
                 headers: { Authorization: `Bearer ${userInfo.token}` },
             });
             setDistributedLists(data);
@@ -41,7 +49,11 @@ const UploadPage = () => {
 
         setLoading(true);
         try {
+<<<<<<< HEAD
             await api.post('/api/upload', formData, {
+=======
+            await axios.post('/api/upload', formData, {
+>>>>>>> c5cb1bd4b96ab4c7275e81b709ca115f32511f6d
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     Authorization: `Bearer ${userInfo.token}`,
@@ -59,7 +71,11 @@ const UploadPage = () => {
 
     const handleClearLists = async () => {
         try {
+<<<<<<< HEAD
             await api.delete('/api/upload/lists', {
+=======
+            await axios.delete('/api/upload/lists', {
+>>>>>>> c5cb1bd4b96ab4c7275e81b709ca115f32511f6d
                 headers: { Authorization: `Bearer ${userInfo.token}` },
             });
             toast.success('All lists cleared successfully');
@@ -72,7 +88,11 @@ const UploadPage = () => {
 
     const handleDeleteItem = async (id) => {
         try {
+<<<<<<< HEAD
             await api.delete(`/api/upload/item/${id}`, {
+=======
+            await axios.delete(`/api/upload/item/${id}`, {
+>>>>>>> c5cb1bd4b96ab4c7275e81b709ca115f32511f6d
                 headers: { Authorization: `Bearer ${userInfo.token}` },
             });
             toast.success('Task removed');
